@@ -2,8 +2,6 @@
 
 A browser-based QR code generator where you can pick a QR type, enter your details, style the code, preview it live, and download it. Everything runs in the browser, with no backend and no data sent to a server.
 
-Built for the **GDG on Campus, SRM — Technical Recruitments 2026-27** (Frontend Task 1: QR Code Generator & Designer).
-
 **Live demo:** https://qr-generator-rust-psi.vercel.app/
 
 ---
