@@ -1,122 +1,153 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState, useMemo, useEffect } from 'react';
+import TypeSelector from './components/TypeSelector';
+import InputForm from './components/InputForm';
+import QRStylePicker from './components/QRStylePicker';
+import QRPreview from './components/QRPreview';
+import ThemeToggle from './components/ThemeToggle';
+import { INITIAL_FORM_VALUES, buildQRData } from './utils/qrHelper';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [activeType, setActiveType] = useState('url');
+  const [formValues, setFormValues] = useState(INITIAL_FORM_VALUES);
+  
+  // Theme state: defaults to dark for max neon-chartreuse anime contrast
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('qr_pop_theme');
+    if (saved) return saved;
+    return 'dark';
+  });
+
+  // QR Color & Style state (Aiko Electric Lime default)
+  const [qrStyle, setQrStyle] = useState({
+    color: '#c8f300',
+    bgColor: '#0a0c0a',
+    dotType: 'rounded',
+  });
+
+  // Sync theme attribute to document element
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('qr_pop_theme', theme);
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  // Compute live QR payload string
+  const currentValues = formValues[activeType] || {};
+  const qrData = useMemo(() => {
+    return buildQRData(activeType, formValues[activeType] || {});
+  }, [activeType, formValues]);
+
+  const handleTypeSelect = (typeId) => {
+    setActiveType(typeId);
+  };
+
+  const handleInputChange = (fieldName, value) => {
+    setFormValues((prev) => ({
+      ...prev,
+      [activeType]: {
+        ...prev[activeType],
+        [fieldName]: value,
+      },
+    }));
+  };
+
+  const handleFillSample = (type, sampleData) => {
+    setFormValues((prev) => ({
+      ...prev,
+      [type]: {
+        ...sampleData,
+      },
+    }));
+  };
+
+  const handleStyleChange = (updates) => {
+    setQrStyle((prev) => ({
+      ...prev,
+      ...updates,
+    }));
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="app-layout">
+      {/* Top Anime / Neo-Pop Header */}
+      <header className="app-header">
+        <div className="header-top-row">
+          <div className="brand-group">
+            <div className="brand-logo-icon">
+              <span className="starburst-glyph">✦</span>
+            </div>
+            <div className="brand-text">
+              <span className="brand-title">QR ✦ POP</span>
+              <span className="brand-badge">STUDIO</span>
+            </div>
+          </div>
+
+          <ThemeToggle theme={theme} onToggleTheme={handleToggleTheme} />
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
+
+        <div className="header-hero">
+          <div className="hero-pill-badge">
+            <span>✳️</span> Vibrant Colors · Clean Details · Neo-Pop
+          </div>
+          <h1 className="header-headline">
+            Design Interactive QR Codes with Personality
+          </h1>
+          <p className="header-subtext">
+            Choose your format, enter content, dial in electrifying cyber-lime palettes, and watch your QR code come alive.
           </p>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      </header>
 
-      <div className="ticks"></div>
+      {/* Main Grid: Left Configuration & Right Preview */}
+      <main className="app-main-grid">
+        {/* Left Column: Multi-step Configuration Card */}
+        <section className="left-panel" aria-label="QR Code Configuration">
+          <div className="card config-card">
+            {/* Step 1: Type Selection */}
+            <TypeSelector
+              activeType={activeType}
+              onSelectType={handleTypeSelect}
+            />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+            <div className="card-divider" />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+            {/* Step 2: Content Details */}
+            <InputForm
+              activeType={activeType}
+              values={currentValues}
+              onChange={handleInputChange}
+              onFillSample={handleFillSample}
+            />
+
+            <div className="card-divider" />
+
+            {/* Step 3: Color & Style Customization */}
+            <div className="style-step-header">
+              <span className="step-tag starburst">✦ 03</span>
+              <h2 className="form-title">Customize Colors &amp; Dots</h2>
+            </div>
+            <QRStylePicker
+              qrStyle={qrStyle}
+              onChangeStyle={handleStyleChange}
+            />
+          </div>
+        </section>
+
+        {/* Right Column: Live QR Preview */}
+        <section className="right-panel" aria-label="QR Code Live Preview">
+          <QRPreview
+            qrData={qrData}
+            activeType={activeType}
+            qrStyle={qrStyle}
+          />
+        </section>
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;
