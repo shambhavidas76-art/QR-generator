@@ -8,22 +8,6 @@ Built for the **GDG on Campus, SRM — Technical Recruitments 2026-27** (Fronten
 
 ---
 
-## Screenshots
-
-| Home / QR types | Customization & presets |
-|---|---|
-| ![Home](screenshots/home.png) | ![Customization](screenshots/customization.png) |
-
-| Wi-Fi QR | Validation error |
-|---|---|
-| ![Wi-Fi](screenshots/wifi.png) | ![Validation](screenshots/validation.png) |
-
-| Lime theme | Mobile view |
-|---|---|
-| ![Lime theme](screenshots/lime-theme.png) | ![Mobile](screenshots/mobile.png) |
-
----
-
 ## Features
 
 **QR types**
