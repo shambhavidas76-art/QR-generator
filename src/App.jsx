@@ -10,6 +10,7 @@ import './App.css';
 function App() {
   const [activeType, setActiveType] = useState('url');
   const [formValues, setFormValues] = useState(INITIAL_FORM_VALUES);
+  const [formValid, setFormValid] = useState(true);
   
   // Theme state: defaults to dark for max neon-chartreuse anime contrast
   const [theme, setTheme] = useState(() => {
@@ -35,11 +36,12 @@ function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  // Compute live QR payload string
+  // Compute live QR payload string — returns empty when form is invalid
   const currentValues = formValues[activeType] || {};
   const qrData = useMemo(() => {
+    if (!formValid) return '';
     return buildQRData(activeType, formValues[activeType] || {});
-  }, [activeType, formValues]);
+  }, [activeType, formValues, formValid]);
 
   const handleTypeSelect = (typeId) => {
     setActiveType(typeId);
@@ -121,6 +123,7 @@ function App() {
               values={currentValues}
               onChange={handleInputChange}
               onFillSample={handleFillSample}
+              onValidityChange={setFormValid}
             />
 
             <div className="card-divider" />

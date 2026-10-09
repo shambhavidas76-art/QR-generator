@@ -1,24 +1,134 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SAMPLE_DATA } from '../utils/qrHelper';
 
 /**
  * InputForm component with interactive controls, sample data autofill,
- * and Wi-Fi password visibility toggle.
+ * Wi-Fi password visibility toggle, and per-field inline validation.
+ * Calls onValidityChange(isValid) so the parent can block QR generation.
  */
-export default function InputForm({ activeType, values = {}, onChange, onFillSample }) {
+export default function InputForm({ activeType, values = {}, onChange, onFillSample, onValidityChange }) {
   const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
+  // --- Validation rules per field ---
+  const validateField = (name, value) => {
+    const v = (value || '').trim();
+
+    if (name === 'phone') {
+      if (!v) return 'Phone number is required';
+      // Allow leading + then only digits, spaces, hyphens, parentheses
+      if (!/^\+?[\d\s\-().]{6,20}$/.test(v)) {
+        return 'Only digits, spaces, +, -, () allowed (6–20 chars)';
+      }
+      // Must contain at least 6 digits
+      const digits = v.replace(/\D/g, '');
+      if (digits.length < 6) return 'Enter at least 6 digits';
+      return '';
+    }
+
+    if (name === 'email') {
+      if (!v) return 'Email address is required';
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(v)) {
+        return 'Enter a valid email (e.g. user@domain.com)';
+      }
+      return '';
+    }
+
+    if (name === 'url') {
+      if (!v) return 'URL is required';
+      try {
+        const parsed = new URL(v);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          return 'URL must start with http:// or https://';
+        }
+      } catch {
+        return 'Enter a valid URL (e.g. https://example.com)';
+      }
+      return '';
+    }
+
+    if (name === 'ssid') {
+      if (!v) return 'Network name (SSID) is required';
+      return '';
+    }
+
+    return '';
+  };
+
+  // Validate all fields for the current activeType and report up
+  const computeAllErrors = (currentValues) => {
+    const newErrors = {};
+
+    if (activeType === 'url') {
+      newErrors.url = validateField('url', currentValues.url);
+    } else if (activeType === 'email') {
+      newErrors.email = validateField('email', currentValues.email);
+      // subject and body are optional
+    } else if (activeType === 'phone') {
+      newErrors.phone = validateField('phone', currentValues.phone);
+    } else if (activeType === 'wifi') {
+      newErrors.ssid = validateField('ssid', currentValues.ssid);
+      // password optional when encryption is None
+    }
+    // text type: no constraints — any text is valid
+
+    return newErrors;
+  };
+
+  // Whenever activeType or values change, recompute validity
+  useEffect(() => {
+    const errs = computeAllErrors(values);
+    const hasErrors = Object.values(errs).some(Boolean);
+    if (onValidityChange) onValidityChange(!hasErrors);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeType, values]);
+
+  // Reset touched state when tab changes
+  useEffect(() => {
+    setTouched({});
+    setErrors({});
+  }, [activeType]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // For phone: block non-digit characters except +, spaces, hyphens, parens
+    if (name === 'phone') {
+      if (value !== '' && !/^[+\d\s\-().]*$/.test(value)) {
+        // Show error but don't update state with invalid char
+        setErrors((prev) => ({
+          ...prev,
+          phone: 'Only digits, spaces, +, -, () allowed',
+        }));
+        return; // Reject the keystroke
+      }
+    }
+
+    const errorMsg = validateField(name, value);
+    setErrors((prev) => ({ ...prev, [name]: errorMsg }));
+    setTouched((prev) => ({ ...prev, [name]: true }));
     onChange(name, value);
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
   };
 
   const handleFillSample = () => {
     const sample = SAMPLE_DATA[activeType];
     if (sample && onFillSample) {
       onFillSample(activeType, sample);
+      // Clear errors when sample is filled — sample data is always valid
+      setErrors({});
+      setTouched({});
     }
   };
+
+  // Helper: only show error if the field was touched
+  const fieldError = (name) => (touched[name] ? errors[name] : '');
 
   return (
     <div className="input-form-container">
@@ -37,6 +147,7 @@ export default function InputForm({ activeType, values = {}, onChange, onFillSam
         </button>
       </div>
 
+      {/* ── URL ── */}
       {activeType === 'url' && (
         <div className="form-group">
           <label htmlFor="url-input" className="form-label">
@@ -48,17 +159,23 @@ export default function InputForm({ activeType, values = {}, onChange, onFillSam
               id="url-input"
               type="url"
               name="url"
-              className="form-control has-icon"
+              className={`form-control has-icon${fieldError('url') ? ' input-error' : ''}`}
               placeholder="https://qrpop.studio"
               value={values.url || ''}
               onChange={handleChange}
+              onBlur={handleBlur}
               autoComplete="url"
             />
           </div>
-          <span className="form-hint">Scanners will immediately launch this link.</span>
+          {fieldError('url') ? (
+            <span className="form-error">⚠ {fieldError('url')}</span>
+          ) : (
+            <span className="form-hint">Scanners will immediately launch this link.</span>
+          )}
         </div>
       )}
 
+      {/* ── Plain Text ── */}
       {activeType === 'text' && (
         <div className="form-group">
           <div className="label-row">
@@ -80,6 +197,7 @@ export default function InputForm({ activeType, values = {}, onChange, onFillSam
         </div>
       )}
 
+      {/* ── Email ── */}
       {activeType === 'email' && (
         <div className="form-fields-stack">
           <div className="form-group">
@@ -90,12 +208,16 @@ export default function InputForm({ activeType, values = {}, onChange, onFillSam
               id="email-input"
               type="email"
               name="email"
-              className="form-control"
+              className={`form-control${fieldError('email') ? ' input-error' : ''}`}
               placeholder="hello@qrpop.studio"
               value={values.email || ''}
               onChange={handleChange}
+              onBlur={handleBlur}
               autoComplete="email"
             />
+            {fieldError('email') && (
+              <span className="form-error">⚠ {fieldError('email')}</span>
+            )}
           </div>
 
           <div className="form-group">
@@ -131,6 +253,7 @@ export default function InputForm({ activeType, values = {}, onChange, onFillSam
         </div>
       )}
 
+      {/* ── Phone ── */}
       {activeType === 'phone' && (
         <div className="form-group">
           <label htmlFor="phone-input" className="form-label">
@@ -142,17 +265,24 @@ export default function InputForm({ activeType, values = {}, onChange, onFillSam
               id="phone-input"
               type="tel"
               name="phone"
-              className="form-control has-icon"
-              placeholder="+1 (555) 000-0000"
+              className={`form-control has-icon${fieldError('phone') ? ' input-error' : ''}`}
+              placeholder="+91 98765 43210"
               value={values.phone || ''}
               onChange={handleChange}
+              onBlur={handleBlur}
               autoComplete="tel"
+              inputMode="tel"
             />
           </div>
-          <span className="form-hint">Include country code for direct international dialing.</span>
+          {fieldError('phone') ? (
+            <span className="form-error">⚠ {fieldError('phone')}</span>
+          ) : (
+            <span className="form-hint">Include country code for direct international dialing.</span>
+          )}
         </div>
       )}
 
+      {/* ── Wi-Fi ── */}
       {activeType === 'wifi' && (
         <div className="form-fields-stack">
           <div className="form-group">
@@ -163,11 +293,15 @@ export default function InputForm({ activeType, values = {}, onChange, onFillSam
               id="wifi-ssid"
               type="text"
               name="ssid"
-              className="form-control"
+              className={`form-control${fieldError('ssid') ? ' input-error' : ''}`}
               placeholder="e.g. Studio_Guest_5G"
               value={values.ssid || ''}
               onChange={handleChange}
+              onBlur={handleBlur}
             />
+            {fieldError('ssid') && (
+              <span className="form-error">⚠ {fieldError('ssid')}</span>
+            )}
           </div>
 
           <div className="form-row">
